@@ -18,7 +18,7 @@ def _normalize_job(raw: dict) -> dict:
     }
 
 
-def search_jobs_by_keyword(query: str, location: str | None = None, per_page: int = 15) -> dict:
+def search_jobs_by_keyword(query: str, location: str | None = None, per_page: int = 3) -> dict:
     """Search JobDataLake by keyword, optionally folding location into the query.
 
     Returns {"jobs": [...], "error": str | None}.
@@ -31,7 +31,7 @@ def search_jobs_by_keyword(query: str, location: str | None = None, per_page: in
     return {"jobs": [_normalize_job(j) for j in result["jobs"]], "error": result["error"]}
 
 
-def search_jobs_by_semantic_query(semantic_query: str, per_page: int = 15) -> dict:
+def search_jobs_by_semantic_query(semantic_query: str, per_page: int = 3) -> dict:
     """Search JobDataLake using a natural-language semantic query.
 
     Returns {"jobs": [...], "error": str | None}.

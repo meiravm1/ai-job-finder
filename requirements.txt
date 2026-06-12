@@ -1,5 +1,7 @@
-anthropic
+google-genai
+groq
 streamlit
 requests
 python-dotenv
 pypdf
+pytest

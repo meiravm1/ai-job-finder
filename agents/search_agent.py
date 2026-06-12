@@ -28,7 +28,7 @@ retrieve a list of matching job postings from JobDataLake.
 4. If no results are returned, retry once with broader/relaxed parameters
    (e.g., remove location filter, simplify keywords).
 5. Deduplicate jobs (by title+company+location) before returning results.
-6. Return up to 15 jobs in the required Output Format.
+6. Return up to 3 jobs in the required Output Format.
 
 # Constraints
 - Do NOT invent or fabricate job listings. Only return jobs actually returned
@@ -66,28 +66,34 @@ Return ONLY valid JSON matching this schema, with no extra text:
 
 TOOL_SCHEMAS = [
     {
-        "name": "search_jobs_by_keyword",
-        "description": "Search JobDataLake for jobs matching a keyword query, optionally narrowed by location.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "query": {"type": "string", "description": "Keyword search query, e.g. 'python developer'"},
-                "location": {"type": "string", "description": "Location to search in, e.g. 'Tel Aviv'"},
-                "per_page": {"type": "integer", "description": "Number of results to request", "default": 15},
+        "type": "function",
+        "function": {
+            "name": "search_jobs_by_keyword",
+            "description": "Search JobDataLake for jobs matching a keyword query, optionally narrowed by location.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "Keyword search query, e.g. 'python developer'"},
+                    "location": {"type": "string", "description": "Location to search in, e.g. 'Tel Aviv'"},
+                    "per_page": {"type": "integer", "description": "Number of results to request (default 3)"},
+                },
+                "required": ["query"],
             },
-            "required": ["query"],
         },
     },
     {
-        "name": "search_jobs_by_semantic_query",
-        "description": "Search JobDataLake using a natural-language description of the desired job.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "semantic_query": {"type": "string", "description": "Free-text description of the desired job"},
-                "per_page": {"type": "integer", "description": "Number of results to request", "default": 15},
+        "type": "function",
+        "function": {
+            "name": "search_jobs_by_semantic_query",
+            "description": "Search JobDataLake using a natural-language description of the desired job.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "semantic_query": {"type": "string", "description": "Free-text description of the desired job"},
+                    "per_page": {"type": "integer", "description": "Number of results to request (default 3)"},
+                },
+                "required": ["semantic_query"],
             },
-            "required": ["semantic_query"],
         },
     },
 ]
@@ -98,6 +104,6 @@ TOOL_FUNCTIONS = {
 }
 
 
-def run_search_agent(user_prompt: str) -> dict:
+def run_search_agent(user_prompt: str, provider: str = "gemini") -> dict:
     """Run the Search Agent on a free-text user prompt and return its JSON result."""
-    return run_agent(SYSTEM_PROMPT, TOOL_SCHEMAS, TOOL_FUNCTIONS, user_prompt)
+    return run_agent(SYSTEM_PROMPT, TOOL_SCHEMAS, TOOL_FUNCTIONS, user_prompt, provider=provider)

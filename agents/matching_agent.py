@@ -36,7 +36,7 @@ matches the candidate's profile, and explain the score briefly.
 # Constraints
 - Do NOT change or omit any job's title/company/location - only add scoring
   fields.
-- Do NOT score more than 15 jobs per request.
+- Do NOT score more than 3 jobs per request.
 - Matching scores must be integers between 0 and 100.
 - Do NOT fabricate jobs that were not in the input list.
 - Keep "match_reason" to a maximum of 2 sentences.
@@ -68,27 +68,33 @@ Return ONLY valid JSON matching this schema, with no extra text:
 
 TOOL_SCHEMAS = [
     {
-        "name": "normalize_user_profile",
-        "description": "Extract a structured candidate profile from free text and optional resume text.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "free_text": {"type": "string", "description": "The candidate's original free-text request"},
-                "resume_text": {"type": "string", "description": "Extracted resume text, if a resume was uploaded"},
+        "type": "function",
+        "function": {
+            "name": "normalize_user_profile",
+            "description": "Extract a structured candidate profile from free text and optional resume text.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "free_text": {"type": "string", "description": "The candidate's original free-text request"},
+                    "resume_text": {"type": "string", "description": "Extracted resume text, if a resume was uploaded"},
+                },
+                "required": ["free_text"],
             },
-            "required": ["free_text"],
         },
     },
     {
-        "name": "score_job_against_profile",
-        "description": "Score a single job listing 0-100 against a candidate profile.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "job": {"type": "object", "description": "A job listing object"},
-                "profile": {"type": "object", "description": "The normalized candidate profile"},
+        "type": "function",
+        "function": {
+            "name": "score_job_against_profile",
+            "description": "Score a single job listing 0-100 against a candidate profile.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "job": {"type": "object", "description": "A job listing object"},
+                    "profile": {"type": "object", "description": "The normalized candidate profile"},
+                },
+                "required": ["job", "profile"],
             },
-            "required": ["job", "profile"],
         },
     },
 ]
@@ -99,11 +105,11 @@ TOOL_FUNCTIONS = {
 }
 
 
-def run_matching_agent(user_prompt: str, jobs: list[dict], resume_text: str | None = None) -> dict:
+def run_matching_agent(user_prompt: str, jobs: list[dict], resume_text: str | None = None, provider: str = "gemini") -> dict:
     """Run the Matching Agent on a candidate prompt/resume and a list of jobs."""
     user_message = json.dumps({
         "free_text": user_prompt,
         "resume_text": resume_text,
-        "jobs": jobs[:15],
+        "jobs": jobs[:3],
     })
-    return run_agent(SYSTEM_PROMPT, TOOL_SCHEMAS, TOOL_FUNCTIONS, user_message)
+    return run_agent(SYSTEM_PROMPT, TOOL_SCHEMAS, TOOL_FUNCTIONS, user_message, provider=provider)

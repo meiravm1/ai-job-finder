@@ -39,7 +39,7 @@ flowchart TD
 
 ```bash
 pip install -r requirements.txt
-cp .env.example .env  # then fill in ANTHROPIC_API_KEY and JOBDATALAKE_API_KEY
+cp .env.example .env  # then fill in GEMINI_API_KEY and JOBDATALAKE_API_KEY
 streamlit run app.py
 ```
 

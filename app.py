@@ -3,6 +3,7 @@
 import streamlit as st
 from dotenv import load_dotenv
 
+from agents.agent_loop import PROVIDER_MODELS
 from orchestrator import run_pipeline
 from tools.resume_tools import extract_resume_text
 
@@ -11,6 +12,8 @@ load_dotenv()
 st.set_page_config(page_title="AI Job Finder", page_icon="🔎")
 st.title("AI Job Finder")
 st.caption("Describe the job you're looking for, optionally upload your resume, and search.")
+
+provider = st.selectbox("LLM provider", options=list(PROVIDER_MODELS.keys()))
 
 free_text = st.text_area(
     "What are you looking for?",
@@ -41,7 +44,7 @@ if st.button("Search", type="primary"):
             resume_text = extract_resume_text(resume_file)
 
         with st.spinner("Searching and ranking jobs..."):
-            result = run_pipeline(user_prompt, resume_text=resume_text)
+            result = run_pipeline(user_prompt, resume_text=resume_text, provider=provider)
 
         ranked_jobs = result.get("ranked_jobs", [])
         errors = result.get("errors", [])
