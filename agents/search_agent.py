@@ -90,6 +90,7 @@ TOOL_SCHEMAS = [
                 "type": "object",
                 "properties": {
                     "semantic_query": {"type": "string", "description": "Free-text description of the desired job"},
+                    "location": {"type": "string", "description": "Location or country to filter by, e.g. 'USA', 'New York'"},
                     "per_page": {"type": "integer", "description": "Number of results to request (default 3)"},
                 },
                 "required": ["semantic_query"],
@@ -106,4 +107,4 @@ TOOL_FUNCTIONS = {
 
 def run_search_agent(user_prompt: str, provider: str = "gemini") -> dict:
     """Run the Search Agent on a free-text user prompt and return its JSON result."""
-    return run_agent(SYSTEM_PROMPT, TOOL_SCHEMAS, TOOL_FUNCTIONS, user_prompt, provider=provider)
+    return run_agent(SYSTEM_PROMPT, TOOL_SCHEMAS, TOOL_FUNCTIONS, user_prompt, provider=provider, agent_name="Search Agent")

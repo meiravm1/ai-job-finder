@@ -28,5 +28,7 @@
 ## Overall
 - Did the final ranked list seem reasonable for the prompt? (Y/N + notes)
 - Any API errors encountered (JobDataLake or Anthropic)?
+  - got 429 from gemini-2.5-flash, had to switch to paid
+  - getting results takes a long time
 - Ideas for next iteration:
   -

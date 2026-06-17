@@ -90,8 +90,34 @@ TOOL_SCHEMAS = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "job": {"type": "object", "description": "A job listing object"},
-                    "profile": {"type": "object", "description": "The normalized candidate profile"},
+                    "job": {
+                        "type": "object",
+                        "description": "A job listing object",
+                        "properties": {
+                            "title": {"type": "string"},
+                            "company": {"type": "string"},
+                            "location": {"type": "string"},
+                            "remote_type": {"type": "string"},
+                            "seniority": {"type": "string"},
+                            "salary": {"type": "string"},
+                            "skills": {"type": "array", "items": {"type": "string"}},
+                            "employment_type": {"type": "string"},
+                            "url": {"type": "string"},
+                        },
+                        "required": ["title", "company", "location"],
+                    },
+                    "profile": {
+                        "type": "object",
+                        "description": "The normalized candidate profile",
+                        "properties": {
+                            "role": {"type": "string"},
+                            "location": {"type": "string"},
+                            "seniority": {"type": "string"},
+                            "remote_preference": {"type": "string"},
+                            "years_experience": {"type": "number"},
+                            "skills": {"type": "array", "items": {"type": "string"}},
+                        },
+                    },
                 },
                 "required": ["job", "profile"],
             },
@@ -112,4 +138,4 @@ def run_matching_agent(user_prompt: str, jobs: list[dict], resume_text: str | No
         "resume_text": resume_text,
         "jobs": jobs[:3],
     })
-    return run_agent(SYSTEM_PROMPT, TOOL_SCHEMAS, TOOL_FUNCTIONS, user_message, provider=provider)
+    return run_agent(SYSTEM_PROMPT, TOOL_SCHEMAS, TOOL_FUNCTIONS, user_message, provider=provider, agent_name="Matching Agent")

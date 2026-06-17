@@ -16,12 +16,17 @@ PROVIDER_MODELS = {
 }
 
 
+def _log(agent_name: str, msg: str) -> None:
+    print(f"[{agent_name}] {msg}", flush=True)
+
+
 def run_agent(
     system_prompt: str,
     tool_schemas: list[dict],
     tool_functions: dict,
     user_message: str,
     provider: str = "gemini",
+    agent_name: str = "Agent",
 ) -> dict:
     """Run a manual tool-use loop and return the agent's final answer as a dict.
 
@@ -34,17 +39,20 @@ def run_agent(
     if provider not in PROVIDER_MODELS:
         raise ValueError(f"Unknown provider '{provider}'. Choose one of: {', '.join(PROVIDER_MODELS)}")
 
+    _log(agent_name, f"Starting on provider={provider}, model={PROVIDER_MODELS[provider]}")
+    _log(agent_name, f"Input: {user_message[:200]}{'...' if len(user_message) > 200 else ''}")
+
     model = PROVIDER_MODELS[provider]
 
     if provider == "gemini":
-        return _run_gemini(system_prompt, tool_schemas, tool_functions, user_message, model)
+        return _run_gemini(system_prompt, tool_schemas, tool_functions, user_message, model, agent_name)
 
-    return _run_openai_compatible(system_prompt, tool_schemas, tool_functions, user_message, model, provider)
+    return _run_openai_compatible(system_prompt, tool_schemas, tool_functions, user_message, model, provider, agent_name)
 
 
 # --- Gemini ---------------------------------------------------------------
 
-def _run_gemini(system_prompt, tool_schemas, tool_functions, user_message, model) -> dict:
+def _run_gemini(system_prompt, tool_schemas, tool_functions, user_message, model, agent_name) -> dict:
     from google import genai
     from google.genai import types
 
@@ -53,6 +61,10 @@ def _run_gemini(system_prompt, tool_schemas, tool_functions, user_message, model
         system_instruction=system_prompt,
         tools=[types.Tool(function_declarations=_to_gemini_function_declarations(tool_schemas))],
         max_output_tokens=MAX_TOKENS,
+        # Thinking tokens count against max_output_tokens; without disabling
+        # them, reasoning can consume the whole budget and leave the function
+        # call JSON truncated, which Gemini reports as MALFORMED_FUNCTION_CALL.
+        thinking_config=types.ThinkingConfig(thinking_budget=0),
     )
 
     contents = [types.Content(role="user", parts=[types.Part(text=user_message)])]
@@ -61,16 +73,24 @@ def _run_gemini(system_prompt, tool_schemas, tool_functions, user_message, model
         response = client.models.generate_content(model=model, contents=contents, config=config)
 
         candidate = response.candidates[0]
+        if candidate.content is None:
+            _log(agent_name, f"Gemini returned no content (finish_reason={candidate.finish_reason})")
+            return {"jobs": [], "ranked_jobs": [], "errors": [f"Gemini returned no content (finish_reason={candidate.finish_reason})"]}
+
         function_calls = [part.function_call for part in candidate.content.parts if part.function_call]
 
         if not function_calls:
+            _log(agent_name, "Done — returning final answer")
             return _parse_final_text(response.text or "")
 
         contents.append(candidate.content)
 
         function_response_parts = []
         for call in function_calls:
-            result = _call_tool(tool_functions, call.name, dict(call.args))
+            args = dict(call.args)
+            _log(agent_name, f"Calling tool: {call.name}({json.dumps(args, default=str)})")
+            result = _call_tool(tool_functions, call.name, args)
+            _log(agent_name, f"Tool result: {json.dumps(result, default=str)[:300]}{'...' if len(json.dumps(result, default=str)) > 300 else ''}")
             function_response_parts.append(
                 types.Part.from_function_response(name=call.name, response=result)
             )
@@ -108,7 +128,7 @@ def _uppercase_schema_types(schema: dict) -> dict:
 
 # --- OpenAI-compatible (Groq) ----------------------------------------------
 
-def _run_openai_compatible(system_prompt, tool_schemas, tool_functions, user_message, model, provider) -> dict:
+def _run_openai_compatible(system_prompt, tool_schemas, tool_functions, user_message, model, provider, agent_name) -> dict:
     client = _make_openai_compatible_client(provider)
 
     messages = [
@@ -127,6 +147,7 @@ def _run_openai_compatible(system_prompt, tool_schemas, tool_functions, user_mes
         message = response.choices[0].message
 
         if not message.tool_calls:
+            _log(agent_name, "Done — returning final answer")
             return _parse_final_text(message.content or "")
 
         messages.append({
@@ -144,7 +165,9 @@ def _run_openai_compatible(system_prompt, tool_schemas, tool_functions, user_mes
 
         for call in message.tool_calls:
             args = json.loads(call.function.arguments or "{}")
+            _log(agent_name, f"Calling tool: {call.function.name}({json.dumps(args, default=str)})")
             result = _call_tool(tool_functions, call.function.name, args)
+            _log(agent_name, f"Tool result: {json.dumps(result, default=str)[:300]}{'...' if len(json.dumps(result, default=str)) > 300 else ''}")
             messages.append({
                 "role": "tool",
                 "tool_call_id": call.id,
