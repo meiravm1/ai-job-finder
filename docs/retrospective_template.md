@@ -30,5 +30,7 @@
 - Any API errors encountered (JobDataLake or Anthropic)?
   - got 429 from gemini-2.5-flash, had to switch to paid
   - getting results takes a long time
+  - why did llm choose by keyword and not full text -> tighten system prompt?
+  - limit number of results to save tokens
 - Ideas for next iteration:
   -

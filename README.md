@@ -18,18 +18,18 @@ candidate's profile (and optional resume).
 
 ```mermaid
 flowchart TD
-    User([User]) -->|"free text + title/location + resume upload"| UI[Streamlit App\napp.py]
-    UI -->|user_prompt + resume_text| Orchestrator[orchestrator.py\nrun_pipeline]
+      User([User]) -->|"free text + title/location + resume upload"| UI[Streamlit App\napp.py]
+      UI -->|user_prompt + resume_text| Orchestrator[orchestrator.py\nrun_pipeline]
 
-    Orchestrator --> SearchAgent[Search Agent\nagents/search_agent.py]
-    SearchAgent -->|search_jobs_by_keyword\nsearch_jobs_by_semantic_query| JDL[(JobDataLake API\napi.jobdatalake.com)]
-    JDL --> SearchAgent
-    SearchAgent -->|jobs JSON| Orchestrator
+      Orchestrator --> SearchAgent[Search Agent\nagents/search_agent.py]
+      SearchAgent -->|search_jobs_by_keyword\nsearch_jobs_by_semantic_query| JDL[(JobDataLake API\napi.jobdatalake.com)]
+      JDL --> SearchAgent
+      SearchAgent -->|jobs JSON| Orchestrator
 
-    Orchestrator -->|user_prompt + resume_text + jobs| MatchAgent[Matching Agent\nagents/matching_agent.py]
-    MatchAgent -->|normalize_user_profile| MatchTools[matching_tools.py]
-    MatchAgent -->|score_job_against_profile per job| MatchTools
-    MatchAgent -->|ranked_jobs JSON| Orchestrator
+      Orchestrator -->|user_prompt + resume_text + jobs| MatchAgent[Matching Agent\nagents/matching_agent.py]
+      MatchAgent -->|normalize_user_profile| MatchTools[matching_tools.py]
+      MatchAgent -->|score_job_against_profile per job| MatchTools
+      MatchAgent -->|ranked_jobs JSON| Orchestrator
 
     Orchestrator -->|ranked_jobs| UI
     UI -->|results table| User
