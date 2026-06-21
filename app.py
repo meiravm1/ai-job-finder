@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 
 from agents.agent_loop import PROVIDER_MODELS
 from orchestrator import run_pipeline
+from tools.matching_tools import DEFAULT_MAX_JOBS_TO_SCORE
 from tools.resume_tools import extract_resume_text
 
 load_dotenv()
@@ -14,43 +15,35 @@ st.title("AI Job Finder")
 st.caption("Describe the job you're looking for, optionally upload your resume, and search.")
 
 provider = st.selectbox("LLM provider", options=list(PROVIDER_MODELS.keys()))
+max_results = st.number_input(
+    "Number of results", min_value=1, max_value=50, value=DEFAULT_MAX_JOBS_TO_SCORE,
+)
 
 free_text = st.text_area(
     "What are you looking for?",
     placeholder="e.g. junior python developer, remote friendly, 2 years experience",
 )
 
-col1, col2 = st.columns(2)
-with col1:
-    title = st.text_input("Job title (optional)", placeholder="e.g. Python Developer")
-with col2:
-    location = st.text_input("Location (optional)", placeholder="e.g. Tel Aviv")
-
 resume_file = st.file_uploader("Upload your resume (optional)", type=["pdf", "txt"])
 
 if st.button("Search", type="primary"):
-    if not free_text and not title:
-        st.warning("Please describe what you're looking for, or enter a job title.")
+    if not free_text:
+        st.warning("Please describe what you're looking for.")
     else:
-        prompt_parts = [free_text]
-        if title:
-            prompt_parts.append(f"Title: {title}.")
-        if location:
-            prompt_parts.append(f"Location: {location}.")
-        user_prompt = " ".join(part for part in prompt_parts if part).strip()
+        user_prompt = free_text.strip()
 
         resume_text = None
         if resume_file is not None:
             resume_text = extract_resume_text(resume_file)
 
         with st.spinner("Searching and ranking jobs..."):
-            result = run_pipeline(user_prompt, resume_text=resume_text, provider=provider)
+            result = run_pipeline(user_prompt, resume_text=resume_text, provider=provider, max_results=int(max_results))
 
         ranked_jobs = result.get("ranked_jobs", [])
         errors = result.get("errors", [])
 
         if errors:
-            st.warning("\n".join(str(e) for e in errors))
+            st.warning("Something went wrong while searching. See Debug info below for details.")
 
         if ranked_jobs:
             st.subheader("Ranked results")
