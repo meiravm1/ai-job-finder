@@ -38,16 +38,25 @@ def _normalize_job(raw: dict) -> dict:
     }
 
 
-def _build_params(
-    query: str,
-    location: str | None,
-    countries: str | None,
-    remote_type: str | None,
-    seniority: str | None,
-    skills: list[str] | None,
-    per_page: int,
+def search_jobs(
+    query: str | None = None,
+    location: str | None = None,
+    countries: str | None = None,
+    remote_type: str | None = None,
+    seniority: str | None = None,
+    skills: list[str] | None = None,
+    per_page: int = 10,
 ) -> dict:
-    params: dict = {"query": query, "per_page": per_page}
+    """Search JobDataLake by free-text query and/or structured filters.
+
+    query is JobDataLake's single text-search param - it can be tight
+    keywords, a descriptive natural-language phrase, or omitted/"*" to skip
+    text matching entirely and rely only on the structured filters
+    (location, countries, remote_type, seniority, skills).
+
+    Returns {"jobs": [...], "error": str | None}.
+    """
+    params: dict = {"query": query or "*", "per_page": per_page}
     if location:
         params["location"] = location
     if countries:
@@ -58,47 +67,6 @@ def _build_params(
         params["seniority"] = seniority
     if skills:
         params["skills"] = ",".join(skills)
-    return params
 
-
-def search_jobs_by_keyword(
-    query: str,
-    location: str | None = None,
-    countries: str | None = None,
-    remote_type: str | None = None,
-    seniority: str | None = None,
-    skills: list[str] | None = None,
-    per_page: int = 10,
-) -> dict:
-    """Search JobDataLake by keyword, optionally narrowed by location/countries/
-    remote type/seniority/skills.
-
-    Returns {"jobs": [...], "error": str | None}.
-    """
-    params = _build_params(query, location, countries, remote_type, seniority, skills, per_page)
-    result = get_jobs(params)
-    return {"jobs": [_normalize_job(j) for j in result["jobs"]], "error": result["error"]}
-
-
-def search_jobs_by_semantic_query(
-    semantic_query: str,
-    location: str | None = None,
-    countries: str | None = None,
-    remote_type: str | None = None,
-    seniority: str | None = None,
-    skills: list[str] | None = None,
-    per_page: int = 10,
-) -> dict:
-    """Search JobDataLake using a natural-language description of the desired job.
-
-    JobDataLake has a single free-text "query" param (no separate semantic
-    endpoint/param), so this sends the natural-language phrase as the query
-    itself - this tool differs from search_jobs_by_keyword in the shape of
-    text the caller passes in (a descriptive phrase vs. tight keywords), not
-    in the underlying API call.
-
-    Returns {"jobs": [...], "error": str | None}.
-    """
-    params = _build_params(semantic_query, location, countries, remote_type, seniority, skills, per_page)
     result = get_jobs(params)
     return {"jobs": [_normalize_job(j) for j in result["jobs"]], "error": result["error"]}

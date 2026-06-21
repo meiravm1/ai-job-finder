@@ -1,23 +1,27 @@
 """Streamlit UI: a single Job Search page."""
 
+import os
+
 import streamlit as st
 from dotenv import load_dotenv
 
 from agents.agent_loop import PROVIDER_MODELS
 from orchestrator import run_pipeline
-from tools.matching_tools import DEFAULT_MAX_JOBS_TO_SCORE
 from tools.resume_tools import extract_resume_text
 
 load_dotenv()
 
 st.set_page_config(page_title="AI Job Finder", page_icon="🔎")
+
+# LLM provider is a deployment-time choice, not a per-search UI option -
+# set via the LLM_PROVIDER env var (defaults to "gemini").
+provider = os.environ.get("LLM_PROVIDER", "gemini")
+if provider not in PROVIDER_MODELS:
+    st.error(f"Unknown LLM_PROVIDER '{provider}'. Choose one of: {', '.join(PROVIDER_MODELS)}")
+    st.stop()
+
 st.title("AI Job Finder")
 st.caption("Describe the job you're looking for, optionally upload your resume, and search.")
-
-provider = st.selectbox("LLM provider", options=list(PROVIDER_MODELS.keys()))
-max_results = st.number_input(
-    "Number of results", min_value=1, max_value=50, value=DEFAULT_MAX_JOBS_TO_SCORE,
-)
 
 free_text = st.text_area(
     "What are you looking for?",
@@ -37,7 +41,7 @@ if st.button("Search", type="primary"):
             resume_text = extract_resume_text(resume_file)
 
         with st.spinner("Searching and ranking jobs..."):
-            result = run_pipeline(user_prompt, resume_text=resume_text, provider=provider, max_results=int(max_results))
+            result = run_pipeline(user_prompt, resume_text=resume_text, provider=provider)
 
         ranked_jobs = result.get("ranked_jobs", [])
         errors = result.get("errors", [])

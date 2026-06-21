@@ -31,7 +31,7 @@ flowchart TD
       Orchestrator -->|normalize_user_profile| MatchTools[Rule-based ranking — no LLM\ntools/matching_tools.py]
 
       Orchestrator -->|user_prompt + profile| SearchAgent[Search Agent — LLM\nagents/search_agent.py]
-      SearchAgent -->|search_jobs_by_keyword\nsearch_jobs_by_semantic_query| JDL[(JobDataLake API\napi.jobdatalake.com)]
+      SearchAgent -->|search_jobs| JDL[(JobDataLake API\napi.jobdatalake.com)]
       JDL --> SearchAgent
       SearchAgent -->|jobs JSON| Orchestrator
 
@@ -49,6 +49,10 @@ pip install -r requirements.txt
 cp .env.example .env  # then fill in GEMINI_API_KEY and JOBDATALAKE_API_KEY
 streamlit run app.py
 ```
+
+The LLM backend (`gemini` or `groq`) is a deployment-time choice, not a
+per-search UI option - set it via the `LLM_PROVIDER` env var (defaults to
+`gemini`), e.g. `LLM_PROVIDER=groq streamlit run app.py`.
 
 ## Project layout
 

@@ -163,10 +163,8 @@ deterministic regex extractor couldn't parse free-text resumes reliably.
                 │   agents/search_agent.py          │
                 │   sees user_prompt + profile hints│
                 │   (never the raw resume text)     │
-                │   must pick exactly ONE tool:      │
-                │   keyword OR semantic search       │
-                │   (retry with other tool only on   │
-                │   empty/failed result)             │
+                │   must pick exactly ONE tool:     │
+                │   keyword search                  │
                 └──────────────────┬────────────────┘
                                    │ (raw jobs from JobDataLake)
                                    ▼
