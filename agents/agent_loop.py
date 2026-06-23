@@ -6,6 +6,7 @@ converted as needed for the selected provider.
 """
 
 import json
+import os
 
 MAX_ITERATIONS = 6
 MAX_TOKENS = 4096
@@ -60,7 +61,13 @@ def run_agent(
     if provider == "gemini":
         return _run_gemini(system_prompt, tool_schemas, tool_functions, user_message, model, agent_name)
 
-    return _run_openai_compatible(system_prompt, tool_schemas, tool_functions, user_message, model, provider, agent_name)
+    try:
+        return _run_openai_compatible(system_prompt, tool_schemas, tool_functions, user_message, model, provider, agent_name)
+    except Exception as e:
+        if _is_rate_limit_error(e) and os.environ.get("GEMINI_API_KEY"):
+            log(agent_name, f"Rate limit hit for {provider} — falling back to Gemini")
+            return _run_gemini(system_prompt, tool_schemas, tool_functions, user_message, PROVIDER_MODELS["gemini"], agent_name)
+        raise
 
 
 # --- Gemini ---------------------------------------------------------------
@@ -211,6 +218,11 @@ def _run_openai_compatible(system_prompt, tool_schemas, tool_functions, user_mes
             })
 
     return _max_iterations_error()
+
+
+def _is_rate_limit_error(e: Exception) -> bool:
+    msg = str(e).lower()
+    return "429" in msg or "rate_limit_exceeded" in msg or "rate limit" in msg
 
 
 def _make_openai_compatible_client(provider: str):
