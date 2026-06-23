@@ -189,7 +189,7 @@ TOOL_SCHEMAS = [
                     "countries": {"anyOf": [{"type": "string"}, {"type": "null"}], "description": "Comma-separated ISO country codes, e.g. 'US,CA'"},
                     "remote_type": {"anyOf": [{"type": "string", "enum": ["fully_remote", "hybrid", "on_site"]}, {"type": "null"}]},
                     "seniority": {"anyOf": [{"type": "string"}, {"type": "null"}], "description": "Experience level, e.g. 'junior', 'mid', 'senior', 'lead'"},
-                    "skills": {"anyOf": [{"type": "array", "items": {"type": "string"}}, {"type": "null"}], "description": "Required skills (ANDed by the API)"},
+                    "skills": {"type": "array", "items": {"type": "string"}, "description": "Required skills (ANDed by the API)"},
                     "per_page": {"type": "integer", "description": "Number of results to request (default 10)"},
                 },
                 "required": [],
