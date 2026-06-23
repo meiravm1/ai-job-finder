@@ -41,14 +41,14 @@ def _final_response(payload: dict):
 @patch("google.genai.Client")
 def test_run_search_agent_calls_jobdatalake_tool_via_gemini(mock_client_cls, mock_get_jobs):
     final_payload = {
-        "search_terms_used": {"query": "python developer", "semantic_query": None, "location": "Tel Aviv"},
+        "search_terms_used": {"query": "python developer", "location": "Tel Aviv"},
         "jobs": FAKE_JOBS_RESULT["jobs"],
         "errors": [],
     }
 
     mock_client = mock_client_cls.return_value
     mock_client.models.generate_content.side_effect = [
-        _tool_call_response("search_jobs_by_keyword", {"query": "python developer", "location": "Tel Aviv"}),
+        _tool_call_response("search_jobs", {"query": "python developer", "location": "Tel Aviv"}),
         _final_response(final_payload),
     ]
 
@@ -66,10 +66,11 @@ def test_run_search_agent_calls_jobdatalake_tool_via_gemini(mock_client_cls, moc
 
 @patch("google.genai.Client")
 def test_run_search_agent_handles_unparseable_final_response(mock_client_cls):
+    not_json_response = SimpleNamespace(candidates=[SimpleNamespace(content=SimpleNamespace(parts=[]))], text="not json")
+
     mock_client = mock_client_cls.return_value
-    mock_client.models.generate_content.side_effect = [
-        SimpleNamespace(candidates=[SimpleNamespace(content=SimpleNamespace(parts=[]))], text="not json"),
-    ]
+    # The agent retries on unparseable JSON up to MAX_JSON_RETRIES times.
+    mock_client.models.generate_content.side_effect = [not_json_response] * 3
 
     result = run_search_agent("junior python developer in Tel Aviv")
 

@@ -6,9 +6,19 @@ converted as needed for the selected provider.
 """
 
 import json
+import os
 
 MAX_ITERATIONS = 6
 MAX_TOKENS = 4096
+MAX_NO_CONTENT_RETRIES = 2
+MAX_JSON_RETRIES = 2
+
+JSON_RETRY_REMINDER = (
+    "Your previous reply was not valid JSON. Respond again with ONLY the "
+    "JSON object matching the required schema - no apologies, no "
+    "explanations, no bullet lists, no prose, no markdown code fences. "
+    "Your entire response must start with '{' and end with '}'."
+)
 
 PROVIDER_MODELS = {
     "gemini": "gemini-2.5-flash",
@@ -16,8 +26,12 @@ PROVIDER_MODELS = {
 }
 
 
-def _log(agent_name: str, msg: str) -> None:
+def log(agent_name: str, msg: str) -> None:
     print(f"[{agent_name}] {msg}", flush=True)
+
+
+def _truncate(text: str, limit: int = 300) -> str:
+    return text if len(text) <= limit else f"{text[:limit]}..."
 
 
 def run_agent(
@@ -39,15 +53,21 @@ def run_agent(
     if provider not in PROVIDER_MODELS:
         raise ValueError(f"Unknown provider '{provider}'. Choose one of: {', '.join(PROVIDER_MODELS)}")
 
-    _log(agent_name, f"Starting on provider={provider}, model={PROVIDER_MODELS[provider]}")
-    _log(agent_name, f"Input: {user_message[:200]}{'...' if len(user_message) > 200 else ''}")
+    log(agent_name, f"Starting on provider={provider}, model={PROVIDER_MODELS[provider]}")
+    log(agent_name, f"Input: {user_message[:200]}{'...' if len(user_message) > 200 else ''}")
 
     model = PROVIDER_MODELS[provider]
 
     if provider == "gemini":
         return _run_gemini(system_prompt, tool_schemas, tool_functions, user_message, model, agent_name)
 
-    return _run_openai_compatible(system_prompt, tool_schemas, tool_functions, user_message, model, provider, agent_name)
+    try:
+        return _run_openai_compatible(system_prompt, tool_schemas, tool_functions, user_message, model, provider, agent_name)
+    except Exception as e:
+        if _is_rate_limit_error(e) and os.environ.get("GEMINI_API_KEY"):
+            log(agent_name, f"Rate limit hit for {provider} — falling back to Gemini")
+            return _run_gemini(system_prompt, tool_schemas, tool_functions, user_message, PROVIDER_MODELS["gemini"], agent_name)
+        raise
 
 
 # --- Gemini ---------------------------------------------------------------
@@ -59,7 +79,7 @@ def _run_gemini(system_prompt, tool_schemas, tool_functions, user_message, model
     client = genai.Client()
     config = types.GenerateContentConfig(
         system_instruction=system_prompt,
-        tools=[types.Tool(function_declarations=_to_gemini_function_declarations(tool_schemas))],
+        tools=[types.Tool(function_declarations=_to_gemini_function_declarations(tool_schemas))] if tool_schemas else None,
         max_output_tokens=MAX_TOKENS,
         # Thinking tokens count against max_output_tokens; without disabling
         # them, reasoning can consume the whole budget and leave the function
@@ -68,29 +88,43 @@ def _run_gemini(system_prompt, tool_schemas, tool_functions, user_message, model
     )
 
     contents = [types.Content(role="user", parts=[types.Part(text=user_message)])]
+    json_retries = 0
+    no_content_retries = 0
 
     for _ in range(MAX_ITERATIONS):
         response = client.models.generate_content(model=model, contents=contents, config=config)
 
         candidate = response.candidates[0]
-        if candidate.content is None:
-            _log(agent_name, f"Gemini returned no content (finish_reason={candidate.finish_reason})")
+        if candidate.content is None or candidate.content.parts is None:
+            if no_content_retries < MAX_NO_CONTENT_RETRIES:
+                no_content_retries += 1
+                log(agent_name, f"Gemini returned no content (finish_reason={candidate.finish_reason}); retrying ({no_content_retries}/{MAX_NO_CONTENT_RETRIES})")
+                continue
+            log(agent_name, f"Gemini returned no content after {no_content_retries} retries (finish_reason={candidate.finish_reason})")
             return {"jobs": [], "ranked_jobs": [], "errors": [f"Gemini returned no content (finish_reason={candidate.finish_reason})"]}
 
         function_calls = [part.function_call for part in candidate.content.parts if part.function_call]
 
         if not function_calls:
-            _log(agent_name, "Done — returning final answer")
-            return _parse_final_text(response.text or "")
+            parsed = _parse_final_text(response.text or "")
+            if _is_unparsed(parsed) and json_retries < MAX_JSON_RETRIES:
+                json_retries += 1
+                log(agent_name, f"Final answer wasn't valid JSON: {_truncate(response.text or '')}")
+                log(agent_name, f"Retrying with a JSON-only reminder ({json_retries}/{MAX_JSON_RETRIES})")
+                contents.append(candidate.content)
+                contents.append(types.Content(role="user", parts=[types.Part(text=JSON_RETRY_REMINDER)]))
+                continue
+            log(agent_name, f"Done — returning final answer: {_truncate(json.dumps(parsed, default=str))}")
+            return parsed
 
         contents.append(candidate.content)
 
         function_response_parts = []
         for call in function_calls:
             args = dict(call.args)
-            _log(agent_name, f"Calling tool: {call.name}({json.dumps(args, default=str)})")
+            log(agent_name, f"Calling tool: {call.name}({json.dumps(args, default=str)})")
             result = _call_tool(tool_functions, call.name, args)
-            _log(agent_name, f"Tool result: {json.dumps(result, default=str)[:300]}{'...' if len(json.dumps(result, default=str)) > 300 else ''}")
+            log(agent_name, f"Tool result: {_truncate(json.dumps(result, default=str))}")
             function_response_parts.append(
                 types.Part.from_function_response(name=call.name, response=result)
             )
@@ -135,20 +169,29 @@ def _run_openai_compatible(system_prompt, tool_schemas, tool_functions, user_mes
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": user_message},
     ]
+    json_retries = 0
 
     for _ in range(MAX_ITERATIONS):
         response = client.chat.completions.create(
             model=model,
             messages=messages,
-            tools=tool_schemas,
+            tools=tool_schemas or None,
             max_tokens=MAX_TOKENS,
         )
 
         message = response.choices[0].message
 
         if not message.tool_calls:
-            _log(agent_name, "Done — returning final answer")
-            return _parse_final_text(message.content or "")
+            parsed = _parse_final_text(message.content or "")
+            if _is_unparsed(parsed) and json_retries < MAX_JSON_RETRIES:
+                json_retries += 1
+                log(agent_name, f"Final answer wasn't valid JSON: {_truncate(message.content or '')}")
+                log(agent_name, f"Retrying with a JSON-only reminder ({json_retries}/{MAX_JSON_RETRIES})")
+                messages.append({"role": "assistant", "content": message.content})
+                messages.append({"role": "user", "content": JSON_RETRY_REMINDER})
+                continue
+            log(agent_name, f"Done — returning final answer: {_truncate(json.dumps(parsed, default=str))}")
+            return parsed
 
         messages.append({
             "role": "assistant",
@@ -165,9 +208,9 @@ def _run_openai_compatible(system_prompt, tool_schemas, tool_functions, user_mes
 
         for call in message.tool_calls:
             args = json.loads(call.function.arguments or "{}")
-            _log(agent_name, f"Calling tool: {call.function.name}({json.dumps(args, default=str)})")
+            log(agent_name, f"Calling tool: {call.function.name}({json.dumps(args, default=str)})")
             result = _call_tool(tool_functions, call.function.name, args)
-            _log(agent_name, f"Tool result: {json.dumps(result, default=str)[:300]}{'...' if len(json.dumps(result, default=str)) > 300 else ''}")
+            log(agent_name, f"Tool result: {_truncate(json.dumps(result, default=str))}")
             messages.append({
                 "role": "tool",
                 "tool_call_id": call.id,
@@ -175,6 +218,11 @@ def _run_openai_compatible(system_prompt, tool_schemas, tool_functions, user_mes
             })
 
     return _max_iterations_error()
+
+
+def _is_rate_limit_error(e: Exception) -> bool:
+    msg = str(e).lower()
+    return "429" in msg or "rate_limit_exceeded" in msg or "rate limit" in msg
 
 
 def _make_openai_compatible_client(provider: str):
@@ -200,7 +248,22 @@ def _parse_final_text(text: str) -> dict:
     try:
         return json.loads(text)
     except (json.JSONDecodeError, ValueError):
-        return {"jobs": [], "ranked_jobs": [], "errors": [f"Could not parse agent response as JSON: {text[:200]}"]}
+        pass
+
+    # Some models (notably lighter/faster ones) wrap the JSON in prose
+    # despite being told not to. Recover the outermost {...} block if present.
+    start, end = text.find("{"), text.rfind("}")
+    if start != -1 and end > start:
+        try:
+            return json.loads(text[start:end + 1])
+        except (json.JSONDecodeError, ValueError):
+            pass
+
+    return {"jobs": [], "ranked_jobs": [], "errors": [f"Could not parse agent response as JSON: {text[:200]}"]}
+
+
+def _is_unparsed(parsed: dict) -> bool:
+    return any(str(e).startswith("Could not parse agent response as JSON") for e in parsed.get("errors", []))
 
 
 def _strip_code_fence(text: str) -> str:

@@ -1,6 +1,6 @@
 # Manual Test Plan
 
-1. **Environment check:** `.env` has `ANTHROPIC_API_KEY` and `JOBDATALAKE_API_KEY`;
+1. **Environment check:** `.env` has `GEMINI_API_KEY` (or `GROQ_API_KEY`) and `JOBDATALAKE_API_KEY`;
    `pip install -r requirements.txt` succeeds.
 
 2. **API client smoke test (no LLM):**
@@ -19,16 +19,17 @@
    For each prompt in `sample_prompts.md`, verify the output matches the
    schema (`jobs` is a list of dicts, `errors` is a list).
 
-4. **Matching Agent isolated test:**
+4. **Ranking isolated test (no LLM):**
    ```python
-   from agents.matching_agent import run_matching_agent
+   from tools.matching_tools import normalize_user_profile, rank_jobs_against_profile
    jobs = [
        {"title": "Junior Python Developer", "company": "Acme", "location": "Tel Aviv",
         "remote_type": "remote", "seniority": "junior", "skills": ["python", "sql"]},
        {"title": "Senior Java Engineer", "company": "Beta", "location": "Haifa",
         "remote_type": "on-site", "seniority": "senior", "skills": ["java"]},
    ]
-   print(run_matching_agent("junior python developer, remote, 2 years experience", jobs))
+   profile = normalize_user_profile("junior python developer, remote, 2 years experience")
+   print(rank_jobs_against_profile(profile, jobs))
    ```
    Verify `ranked_jobs` is sorted descending by `matching_score`, scores are
    ints 0-100, and `profile_used` looks reasonable.

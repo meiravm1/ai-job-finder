@@ -139,3 +139,19 @@ def score_job_against_profile(job: dict, profile: dict) -> dict:
     match_reason = "; ".join(reasons) if reasons else "Limited overlap with the candidate's stated profile."
 
     return {"matching_score": score, "match_reason": match_reason}
+
+
+DEFAULT_MAX_JOBS_TO_SCORE = 10
+
+
+def rank_jobs_against_profile(profile: dict, jobs: list[dict], max_jobs: int = DEFAULT_MAX_JOBS_TO_SCORE) -> dict:
+    """Score and rank jobs against an already-extracted candidate profile.
+
+    Pure-Python replacement for the old LLM-orchestrated Matching Agent.
+    Scores at most max_jobs jobs and returns them sorted by matching_score
+    descending.
+    """
+    ranked_jobs = [{**job, **score_job_against_profile(job, profile)} for job in jobs[:max_jobs]]
+    ranked_jobs.sort(key=lambda j: j["matching_score"], reverse=True)
+
+    return {"profile_used": profile, "ranked_jobs": ranked_jobs, "errors": []}

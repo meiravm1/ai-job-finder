@@ -38,27 +38,35 @@ def _normalize_job(raw: dict) -> dict:
     }
 
 
-def search_jobs_by_keyword(query: str, location: str | None = None, per_page: int = 3) -> dict:
-    """Search JobDataLake by keyword with an optional location filter.
+def search_jobs(
+    query: str | None = None,
+    location: str | None = None,
+    countries: str | None = None,
+    remote_type: str | None = None,
+    seniority: str | None = None,
+    skills: list[str] | None = None,
+    per_page: int = 10,
+) -> dict:
+    """Search JobDataLake by free-text query and/or structured filters.
+
+    query is JobDataLake's single text-search param - it can be tight
+    keywords, a descriptive natural-language phrase, or omitted/"*" to skip
+    text matching entirely and rely only on the structured filters
+    (location, countries, remote_type, seniority, skills).
 
     Returns {"jobs": [...], "error": str | None}.
     """
-    params: dict = {"q": query, "per_page": per_page}
+    params: dict = {"query": query or "*", "per_page": per_page}
     if location:
         params["location"] = location
-
-    result = get_jobs(params)
-    return {"jobs": [_normalize_job(j) for j in result["jobs"]], "error": result["error"]}
-
-
-def search_jobs_by_semantic_query(semantic_query: str, location: str | None = None, per_page: int = 3) -> dict:
-    """Search JobDataLake using a natural-language semantic query with an optional location filter.
-
-    Returns {"jobs": [...], "error": str | None}.
-    """
-    params: dict = {"semantic_query": semantic_query, "per_page": per_page}
-    if location:
-        params["location"] = location
+    if countries:
+        params["countries"] = countries
+    if remote_type:
+        params["remoteType"] = remote_type
+    if seniority:
+        params["seniority"] = seniority
+    if skills:
+        params["skills"] = ",".join(skills)
 
     result = get_jobs(params)
     return {"jobs": [_normalize_job(j) for j in result["jobs"]], "error": result["error"]}
