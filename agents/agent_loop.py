@@ -9,7 +9,7 @@ import json
 import os
 
 MAX_ITERATIONS = 10
-MAX_TOKENS = 4096
+MAX_TOKENS = 8192
 MAX_NO_CONTENT_RETRIES = 2
 MAX_JSON_RETRIES = 2
 
@@ -64,8 +64,8 @@ def run_agent(
     try:
         return _run_openai_compatible(system_prompt, tool_schemas, tool_functions, user_message, model, provider, agent_name)
     except Exception as e:
-        if _is_rate_limit_error(e) and os.environ.get("GEMINI_API_KEY"):
-            log(agent_name, f"Rate limit hit for {provider} — falling back to Gemini")
+        if _is_retryable_provider_error(e) and os.environ.get("GEMINI_API_KEY"):
+            log(agent_name, f"{provider} request failed ({e}) — falling back to Gemini")
             return _run_gemini(system_prompt, tool_schemas, tool_functions, user_message, PROVIDER_MODELS["gemini"], agent_name)
         raise
 
@@ -222,9 +222,22 @@ def _run_openai_compatible(system_prompt, tool_schemas, tool_functions, user_mes
     return _max_iterations_error()
 
 
-def _is_rate_limit_error(e: Exception) -> bool:
+def _is_retryable_provider_error(e: Exception) -> bool:
+    """True for provider-side failures worth falling back to Gemini for.
+
+    Covers rate limits, and Groq/Llama's "tool_use_failed" - a known
+    failure mode where the model emits a malformed pseudo-XML function call
+    (e.g. "<function=...>") instead of a proper structured tool call,
+    usually triggered by unusual schema shapes (like anyOf-nullable params).
+    Neither is something retrying the same provider/prompt reliably fixes.
+    """
     msg = str(e).lower()
-    return "429" in msg or "rate_limit_exceeded" in msg or "rate limit" in msg
+    return (
+        "429" in msg
+        or "rate_limit_exceeded" in msg
+        or "rate limit" in msg
+        or "tool_use_failed" in msg
+    )
 
 
 def _make_openai_compatible_client(provider: str):

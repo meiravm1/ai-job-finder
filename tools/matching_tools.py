@@ -110,25 +110,25 @@ def score_job_against_profile(job: dict, profile: dict) -> dict:
 
     title = (job.get("title") or "").lower()
     if profile.get("role") and profile["role"].lower() in title:
-        score += 30
+        score += 40
         reasons.append(f"title matches desired role '{profile['role']}'")
     elif profile.get("role") and job.get("role_match_signal"):
         signal = job["role_match_signal"]
-        score += round(30 * signal)
+        score += round(40 * signal)
         reasons.append(f"title is a partial match for role '{profile['role']}' (similarity {signal:.2f})")
 
     job_remote = (job.get("remote_type") or "").lower()
     job_location = (job.get("location") or "").lower()
     if profile.get("remote_preference") == "remote" and "remote" in job_remote:
-        score += 20
+        score += 10
         reasons.append("offers remote work as requested")
     elif profile.get("location") and profile["location"].lower() in job_location:
-        score += 20
+        score += 15
         reasons.append(f"location matches '{profile['location']}'")
 
     job_seniority = (job.get("seniority") or "").lower()
     if profile.get("seniority") and profile["seniority"] == job_seniority:
-        score += 20
+        score += 10
         reasons.append(f"seniority matches '{profile['seniority']}'")
 
     profile_skills = set(profile.get("skills") or [])
@@ -136,7 +136,7 @@ def score_job_against_profile(job: dict, profile: dict) -> dict:
     if profile_skills:
         overlap = profile_skills & job_skills
         if overlap:
-            score += round(30 * len(overlap) / len(profile_skills))
+            score += round(25 * len(overlap) / len(profile_skills))
             reasons.append(f"shares skills: {', '.join(sorted(overlap))}")
 
     score = max(0, min(100, score))

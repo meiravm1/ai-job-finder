@@ -62,7 +62,8 @@ if result is not None:
                     "Title": job.get("title"),
                     "Company": job.get("company"),
                     "Location": job.get("location"),
-                    "Score": job.get("matching_score"),
+                    "Skills": ", ".join(job.get("skills") or []),
+                    "Score%": job.get("matching_score"),
                     "Why": job.get("match_reason"),
                     "Link": job.get("url"),
                 }

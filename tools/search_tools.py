@@ -39,7 +39,7 @@ def _normalize_job(raw: dict) -> dict:
         "remote_type": raw.get("remote_type"),
         "seniority": seniority,
         "salary": raw.get("salary"),
-        "skills": raw.get("skills") or [],
+        "skills": raw.get("required_skills") or [],
         "employment_type": raw.get("employment_type"),
         "url": raw.get("url") or raw.get("job_url"),
     }

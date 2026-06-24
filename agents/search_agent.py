@@ -169,6 +169,10 @@ Return ONLY valid JSON matching this schema, with no extra text:
 keep in mind - You need to try to extract fields from the tool's response into your required output.
 If title or any other field has data the belongs to another field , map it.
 i.e "Python Coding Specialist" can me mapped to python skill. add it to you skills []
+
+A job's "skills" list from the tool can have many entries - include at most
+6 in your output, picking the most relevant/distinctive ones (e.g. "python",
+"django" over generic process terms) if there are more than 6.
 """
 
 TOOL_SCHEMAS = [
@@ -209,10 +213,10 @@ TOOL_SCHEMAS = [
                 "type": "object",
                 "properties": {
                     "company_name": {"type": "string", "description": "The company name to look up, e.g. 'Acme Corp'"},
-                    "location": {"type": "string", "description": "The job's location, e.g. 'Tel Aviv', used to disambiguate same-named companies in different regions"},
-                    "company_domain": {"type": "string", "description": "The company's own website domain (e.g. 'hover.to'), ONLY if the job's url field is clearly the company's own site rather than a job board/ATS. Omit if unsure."},
+                    "location": {"anyOf": [{"type": "string"}, {"type": "null"}], "description": "The job's location, e.g. 'Tel Aviv', used to disambiguate same-named companies in different regions"},
+                    "company_domain": {"anyOf": [{"type": "string"}, {"type": "null"}], "description": "The company's own website domain (e.g. 'hover.to'), ONLY if the job's url field is clearly the company's own site rather than a job board/ATS. Omit if unsure."},
                 },
-                "required": ["company_name", "location"],
+                "required": ["company_name"],
             },
         },
     },

@@ -30,12 +30,10 @@
 - Any API errors encountered (JobDataLake or Anthropic)?
   - got 429 from gemini-2.5-flash, had to switch to paid
   - getting results takes a long time
-  - why did llm choose by keyword and not full text -> tighten system prompt?
   - hard to understand what happens after what. added logging function
   - hard to understand what happens after what. worked with debug and breakpoints
   - limit number of results to save tokens
   - do we need a rule based matcher or would llm do the matching.
-  - inconsistent answers?
   - agent entering loop?
 - Ideas for next iteration:
   
@@ -128,3 +126,10 @@ Yes, that's exactly how it's designed to work, and it's not wasteful in the way 
 
 So the design is: free reuse of anything already in context, and the count-check only forces additional work proportional to what was actually missed — not redundant re-work on what it already did.
 
+**if choosing Resume and free text 
+it takes location from free text first **
+
+[Search Agent] Calling tool: search_company({"company_name": "Daloopa", "location": "New York, NY"})
+[Search Agent] Tool result: {"results": [{"title": "Daloopa Receives $13M Strategic Investment to Power the Next Generation of AI in Finance with the Most Accurate and Complete Data Infrastructure - PR Newswire", "source": "PR Newswire", "published": "Thu, 31 Jul 2025 07:00:00 GMT", "url": "https://news.google.com/rss/articles...
+[Search Agent] Iteration 3/10
+[Search Agent] Calling tool: search
