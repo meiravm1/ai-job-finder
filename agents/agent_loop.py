@@ -7,7 +7,7 @@ converted as needed for the selected provider.
 
 import json
 
-MAX_ITERATIONS = 6
+MAX_ITERATIONS = 10
 MAX_TOKENS = 4096
 MAX_NO_CONTENT_RETRIES = 2
 MAX_JSON_RETRIES = 2
@@ -84,7 +84,8 @@ def _run_gemini(system_prompt, tool_schemas, tool_functions, user_message, model
     json_retries = 0
     no_content_retries = 0
 
-    for _ in range(MAX_ITERATIONS):
+    for iteration in range(1, MAX_ITERATIONS + 1):
+        log(agent_name, f"Iteration {iteration}/{MAX_ITERATIONS}")
         response = client.models.generate_content(model=model, contents=contents, config=config)
 
         candidate = response.candidates[0]
@@ -164,7 +165,8 @@ def _run_openai_compatible(system_prompt, tool_schemas, tool_functions, user_mes
     ]
     json_retries = 0
 
-    for _ in range(MAX_ITERATIONS):
+    for iteration in range(1, MAX_ITERATIONS + 1):
+        log(agent_name, f"Iteration {iteration}/{MAX_ITERATIONS}")
         response = client.chat.completions.create(
             model=model,
             messages=messages,

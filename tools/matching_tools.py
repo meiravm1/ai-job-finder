@@ -141,7 +141,7 @@ def score_job_against_profile(job: dict, profile: dict) -> dict:
     return {"matching_score": score, "match_reason": match_reason}
 
 
-DEFAULT_MAX_JOBS_TO_SCORE = 10
+DEFAULT_MAX_JOBS_TO_SCORE = 5
 
 
 def rank_jobs_against_profile(profile: dict, jobs: list[dict], max_jobs: int = DEFAULT_MAX_JOBS_TO_SCORE) -> dict:
