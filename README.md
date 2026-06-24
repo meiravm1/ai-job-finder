@@ -49,6 +49,7 @@ flowchart TD
       Orchestrator -->|user_prompt + profile| SearchAgent[Search Agent — LLM\nagents/search_agent.py]
       SearchAgent -->|search_jobs| JDL[(JobDataLake API\napi.jobdatalake.com)]
       JDL --> SearchAgent
+      SearchAgent -.->|in-context judgment\nno tool call| RoleSignal[[estimates role_match_signal\nper job]]
       SearchAgent -->|search_company per job| GNews[(Google News RSS\nnews.google.com)]
       GNews --> SearchAgent
       SearchAgent -->|jobs JSON\n+ role_match_signal + company_news| Orchestrator
