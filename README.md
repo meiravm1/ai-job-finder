@@ -54,7 +54,7 @@ flowchart TD
       GNews --> SearchAgent
       SearchAgent -->|jobs JSON\n+ role_match_signal + company_news| Orchestrator
 
-      Orchestrator -->|profile + jobs| MatchTools[Rule-based ranking — no LLM\ntools/matching_tools.py]
+      Orchestrator -->|profile + jobs| MatchTools[Rule-based ranking — (minimal LLM generated title match signal)\ntools/matching_tools.py]
       MatchTools -->|ranked_jobs JSON| Orchestrator
 
     Orchestrator -->|ranked_jobs| UI
