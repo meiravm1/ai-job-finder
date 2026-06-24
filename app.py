@@ -42,6 +42,8 @@ if st.button("Search", type="primary"):
 
         with st.spinner("Searching and ranking jobs..."):
             st.session_state.search_result = run_pipeline(user_prompt, resume_text=resume_text, provider=provider)
+        # New results invalidate any previously selected row index in the table below.
+        st.session_state.pop("ranked_jobs_table", None)
 
 result = st.session_state.get("search_result")
 if result is not None:
@@ -66,7 +68,7 @@ if result is not None:
                 }
                 for job in ranked_jobs
             ],
-            use_container_width=True,
+            width="stretch",
             on_select="rerun",
             selection_mode="single-row",
             key="ranked_jobs_table",
@@ -74,7 +76,7 @@ if result is not None:
         )
 
         selected_rows = selection.selection.rows if selection else []
-        if selected_rows:
+        if selected_rows and selected_rows[0] < len(ranked_jobs):
             selected_job = ranked_jobs[selected_rows[0]]
             news = selected_job.get("company_news") or []
             st.markdown(f"#### 📰 Company Spotlight: {selected_job.get('company')}")

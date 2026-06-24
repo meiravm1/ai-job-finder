@@ -112,6 +112,10 @@ def score_job_against_profile(job: dict, profile: dict) -> dict:
     if profile.get("role") and profile["role"].lower() in title:
         score += 30
         reasons.append(f"title matches desired role '{profile['role']}'")
+    elif profile.get("role") and job.get("role_match_signal"):
+        signal = job["role_match_signal"]
+        score += round(30 * signal)
+        reasons.append(f"title is a partial match for role '{profile['role']}' (similarity {signal:.2f})")
 
     job_remote = (job.get("remote_type") or "").lower()
     job_location = (job.get("location") or "").lower()

@@ -81,7 +81,16 @@ system prompt.
    can succeed on retry. If it fails again, stop and report the error in
    the "errors" field rather than calling anything again.
 6. Deduplicate jobs (by title+company+location) before returning results.
-7. For EVERY job you're about to return, call search_company once with that
+7. If the candidate profile has a "role" hint, for EVERY job set
+   "role_match_signal" to a number from 0 to 1 estimating how closely that
+   job's title matches the desired role - 1.0 for the same role (allowing
+   for exact title matches, which are handled separately downstream),
+   around 0.5-0.8 for a related/adjacent role (e.g. "Data Scientist" vs
+   "Machine Learning Engineer"), and near 0 for an unrelated role (e.g.
+   "Data Scientist" vs "Sales Manager"). This is a judgment call about
+   real-world job-title similarity, not a string match. If the profile has
+   no "role" hint, set "role_match_signal" to null for every job.
+8. For EVERY job you're about to return, call search_company once with that
    job's company name AND its location (so a company with the same name in
    a different region isn't confused with this one). Skip
    company+location pairs you've already looked up in this run. Read the
@@ -95,13 +104,13 @@ system prompt.
    "company_news" to an empty list - do not force in weak or unrelated
    results. You may call search_company for multiple different companies in
    the same turn instead of one at a time, to use fewer turns.
-8. Before writing your final answer, COUNT the distinct companies among the
+9. Before writing your final answer, COUNT the distinct companies among the
    jobs you're about to return and COUNT how many distinct companies you've
    called search_company for in this run. If those two counts don't match,
    you are NOT done - go back and call search_company for every company you
-   missed before producing the final answer. Do not finish step 7 partway
+   missed before producing the final answer. Do not finish step 8 partway
    through and move on.
-9. Return up to {MAX_RESULTS} jobs in the required Output Format. Pass
+10. Return up to {MAX_RESULTS} jobs in the required Output Format. Pass
    per_page={MAX_RESULTS} to the search_jobs tool, unless you've already
    relaxed it on a retry.
 
@@ -144,6 +153,7 @@ Return ONLY valid JSON matching this schema, with no extra text:
       "skills": ["string", "..."],
       "employment_type": "string or null",
       "url": "string or null",
+      "role_match_signal": "number from 0 to 1, or null",
       "company_news": [
         {
           "headline": "string",

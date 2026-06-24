@@ -229,3 +229,12 @@ Let me walk through it plainly, matching your description:
 MAX_ITERATIONS is just a hard cap on how many of those round-trips (steps 2-6) are allowed to happen before we give up. Each "iteration" = one trip to the model where it either calls a tool again or finally answers. It exists purely as a safety valve: if the model got stuck calling tools forever (a bug, a confusing tool result, whatever) and never produced a final answer, without this cap we'd be stuck in an infinite loop, burning API calls and money forever. With MAX_ITERATIONS=10, after 10 of these round-trips with no final answer, the code just stops and returns an error instead of hanging forever (_max_iterations_error() in agents/agent_loop.py:267).
 
 It has nothing to do with how well the model does its job (counting companies, judging news relevance, etc.) — that's all prompt instructions. It's purely "don't let this run forever."
+
+
+**About the matching signal ( profile -> title matching by llm)**
+**should this capability be another tool of the search agent?**
+⧉ Selected 1 lines from tools\matching_tools.py in Visual Studio Code
+
+No — a tool is for delegating to something the LLM can't do itself (call an external API, run deterministic code). Here the agent already has both pieces of information sitting in its own context — the job title (from search_jobs) and the profile's role (from the user message) — so there's nothing to fetch or compute externally. It's the same kind of in-context judgment the agent already makes when mapping remote_preference to remote_type or deduping jobs: direct reasoning over what's already in front of it, written straight into the output field.
+
+Making it a tool call would just add a pointless round-trip — the model "calling itself" with no new capability gained, costing an extra iteration for zero benefit. Keep it as a Process-step instruction (which is what we just did), not a tool.
