@@ -67,6 +67,7 @@ if result is not None:
                     "Link": job.get("url"),
                 }
                 for job in ranked_jobs
+                if (job.get("matching_score") or 0) >= 20
             ],
             width="stretch",
             on_select="rerun",
