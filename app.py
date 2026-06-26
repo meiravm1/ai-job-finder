@@ -64,7 +64,6 @@ if result is not None:
                     "Location": job.get("location"),
                     "Skills": ", ".join(job.get("skills") or []),
                     "Score%": job.get("matching_score"),
-                    "Why": job.get("match_reason"),
                     "Link": job.get("url"),
                 }
                 for job in ranked_jobs
