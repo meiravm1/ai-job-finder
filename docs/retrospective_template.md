@@ -133,3 +133,14 @@ it takes location from free text first **
 [Search Agent] Tool result: {"results": [{"title": "Daloopa Receives $13M Strategic Investment to Power the Next Generation of AI in Finance with the Most Accurate and Complete Data Infrastructure - PR Newswire", "source": "PR Newswire", "published": "Thu, 31 Jul 2025 07:00:00 GMT", "url": "https://news.google.com/rss/articles...
 [Search Agent] Iteration 3/10
 [Search Agent] Calling tool: search
+
+
+examples:
+react game developer in london
+
+
+Senior AI / Machine Learning Engineer NY wants to work at google
+[Search Agent] Calling tool: search_company({"company_name": "Millennium Management", "location": "New York, NY"})
+[Search Agent] Tool result: {"results": [{"title": "Meet the multi-millionaire power couple who\u2019s think tank advocated \u2018communism for landlords\u2019 and a global welfare state while living in $30M mansion - New York Post", "source": "New York Post", "published": "Tue, 23 Jun 2026 11:00:00 GMT", "url": "https://news....
+
+it decided to ommit those news..

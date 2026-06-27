@@ -207,9 +207,9 @@ Search Agent — a real tool-use decision, not just routing:
 - It also has to manage retries adaptively (drop skills first on empty results, retry the same call once on a transient error) — that's runtime judgment based on what the tool actually returned, not a fixed sequence.
 - Contrast with ranking: ranking is "take jobs → score → sort," same steps every time regardless of input — that's why it's plain Python and not an agent.
 
-why is duck a go go a tool and matching isn't?
+why is google news a tool and matching isn't?
 
-The judgment is in what the agent does with what comes back. DuckDuckGo returns raw, unstructured web snippets — news, reviews, the company's own site, maybe nothing useful at all. The agent has to read that and decide: is anything here worth surfacing? Is it a layoffs story, a funding round, a glassdoor complaint, irrelevant noise? That's interpretation of free text that a fixed function can't do — there's no formula for "is this snippet relevant," the same way there's a formula for "does this skill list overlap."
+The judgment is in what the agent does with what comes back. google returns raw, unstructured web snippets — news, reviews, the company's own site, maybe nothing useful at all. The agent has to read that and decide: is anything here worth surfacing? Is it a layoffs story, a funding round, a glassdoor complaint, irrelevant noise? That's interpretation of free text that a fixed function can't do — there's no formula for "is this snippet relevant," the same way there's a formula for "does this skill list overlap."
 
 Compare to scoring: there, no LLM ever touches the input or the output. score_job_against_profile takes structured fields, runs fixed arithmetic, returns a number — the agent isn't reading or interpreting anything, it's just the messenger calling a function and passing the result through.
 
