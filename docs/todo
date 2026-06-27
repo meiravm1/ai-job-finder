@@ -1,0 +1,15 @@
+
+
+
+if score is 0 don't show results
+Data Science remote - had bad results
+
+why
+
+free text or resume?
+
+
+edge cases:
+no cv
+free text + cv => add role that doesn't match cv
+free text + cv => add location that doesn't match cv
