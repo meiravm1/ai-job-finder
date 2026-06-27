@@ -120,7 +120,7 @@ def score_job_against_profile(job: dict, profile: dict) -> dict:
     job_remote = (job.get("remote_type") or "").lower()
     job_location = (job.get("location") or "").lower()
     if profile.get("remote_preference") == "remote" and "remote" in job_remote:
-        score += 10
+        score += 15
         reasons.append("offers remote work as requested")
     elif profile.get("location") and profile["location"].lower() in job_location:
         score += 15
@@ -136,7 +136,7 @@ def score_job_against_profile(job: dict, profile: dict) -> dict:
     if profile_skills:
         overlap = profile_skills & job_skills
         if overlap:
-            score += round(25 * len(overlap) / len(profile_skills))
+            score += round(35 * len(overlap) / len(profile_skills))
             reasons.append(f"shares skills: {', '.join(sorted(overlap))}")
 
     score = max(0, min(100, score))

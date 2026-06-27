@@ -63,9 +63,9 @@ system prompt.
 1. Read the user's free-text request carefully.
 2. Decide how to populate the call:
    - If the candidate profile gives you solid structured signals (skills,
-     seniority, remote_preference), prefer setting those as filters and
-     either omit query or use it for just the role/title - don't cram
-     everything into the query text.
+     seniority, remote_preference), set those as filters. Always put the
+     role/title in query when one is known - it has no dedicated filter
+     param. Don't cram anything beyond the role into the query text.
    - If the request is vague/conceptual and the profile has little
      structured signal, write a descriptive natural-language phrase into
      query instead, and rely less on filters.

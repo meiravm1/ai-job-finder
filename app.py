@@ -127,5 +127,5 @@ if result is not None:
     elif not errors:
         st.info("No matching jobs found. Try a broader search.")
 
-    with st.expander("Debug info"):
-        st.json(result)
+    # with st.expander("Debug info"):
+    #     st.json(result)
