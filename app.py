@@ -13,6 +13,34 @@ load_dotenv()
 
 st.set_page_config(page_title="AI Job Finder", page_icon="🔎")
 
+# Style company-name buttons to look like hyperlinks.
+# Primary buttons (e.g. "Search") use kind="primary" and are unaffected.
+st.markdown(
+    """
+    <style>
+    [data-testid="stButton"] > button[kind="secondary"] {
+        background: none !important;
+        border: none !important;
+        color: #1a73e8 !important;
+        text-decoration: underline !important;
+        padding: 0 !important;
+        font-size: 0.9rem !important;
+        font-weight: normal !important;
+        min-height: 0 !important;
+        box-shadow: none !important;
+        text-align: left !important;
+    }
+    [data-testid="stButton"] > button[kind="secondary"]:hover {
+        color: #1557b0 !important;
+        background: none !important;
+        border: none !important;
+        box-shadow: none !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 # LLM provider is a deployment-time choice, not a per-search UI option -
 # set via the LLM_PROVIDER env var (defaults to "gemini").
 provider = os.environ.get("LLM_PROVIDER", "gemini")
@@ -42,8 +70,7 @@ if st.button("Search", type="primary"):
 
         with st.spinner("Searching and ranking jobs..."):
             st.session_state.search_result = run_pipeline(user_prompt, resume_text=resume_text, provider=provider)
-        # New results invalidate any previously selected row index in the table below.
-        st.session_state.pop("ranked_jobs_table", None)
+        st.session_state.pop("selected_company_idx", None)
 
 result = st.session_state.get("search_result")
 if result is not None:
@@ -54,41 +81,46 @@ if result is not None:
         st.warning("Something went wrong while searching. See Debug info below for details.")
 
     if ranked_jobs:
-        st.subheader("Ranked results")
-        st.caption("Click a row to see company news below.")
-        selection = st.dataframe(
-            [
-                {
-                    "Title": job.get("title"),
-                    "Company": job.get("company"),
-                    "Location": job.get("location"),
-                    "Skills": ", ".join(job.get("skills") or []),
-                    "Score%": job.get("matching_score"),
-                    "Link": job.get("url"),
-                }
-                for job in ranked_jobs
-                if (job.get("matching_score") or 0) >= 20
-            ],
-            width="stretch",
-            on_select="rerun",
-            selection_mode="single-row",
-            key="ranked_jobs_table",
-            column_config={"Link": st.column_config.LinkColumn("Link", display_text="Apply ↗")},
-        )
+        visible_jobs = [job for job in ranked_jobs if (job.get("matching_score") or 0) >= 20]
 
-        selected_rows = selection.selection.rows if selection else []
-        if selected_rows and selected_rows[0] < len(ranked_jobs):
-            selected_job = ranked_jobs[selected_rows[0]]
-            news = selected_job.get("company_news") or []
-            st.markdown(f"#### 📰 Company Spotlight: {selected_job.get('company')}")
-            if news:
-                for item in news:
-                    meta = " · ".join(p for p in (item.get("published"), item.get("source")) if p)
-                    st.markdown(f"- {item.get('headline')}")
-                    if meta:
-                        st.caption(meta)
-            else:
-                st.caption("No notable company news found.")
+        if visible_jobs:
+            st.subheader("Ranked results")
+
+            # Table header
+            h = st.columns([3, 2, 2, 3, 1, 1])
+            for col, label in zip(h, ["Title", "Company", "Location", "Skills", "Score%", "Apply"]):
+                col.markdown(f"**{label}**")
+
+            st.divider()
+
+            # Table rows
+            for i, job in enumerate(visible_jobs):
+                cols = st.columns([3, 2, 2, 3, 1, 1])
+                cols[0].write(job.get("title", ""))
+                if cols[1].button(job.get("company") or "Unknown", key=f"co_{i}"):
+                    st.session_state.selected_company_idx = i
+                cols[2].write(job.get("location", ""))
+                cols[3].write(", ".join(job.get("skills") or []))
+                cols[4].write(f"{job.get('matching_score', 0)}%")
+                if job.get("url"):
+                    cols[5].markdown(f"[Apply ↗]({job.get('url')})")
+
+            # Company Spotlight (detail panel)
+            selected_idx = st.session_state.get("selected_company_idx")
+            if selected_idx is not None and selected_idx < len(visible_jobs):
+                selected_job = visible_jobs[selected_idx]
+                news = selected_job.get("company_news") or []
+                st.markdown(f"#### 📰 Company Spotlight: {selected_job.get('company')}")
+                if news:
+                    for item in news:
+                        meta = " · ".join(p for p in (item.get("published"), item.get("source")) if p)
+                        st.markdown(f"- {item.get('headline')}")
+                        if meta:
+                            st.caption(meta)
+                else:
+                    st.caption("No notable company news found.")
+        else:
+            st.info("No matching jobs found. Try a broader search.")
     elif not errors:
         st.info("No matching jobs found. Try a broader search.")
 
