@@ -1,5 +1,6 @@
 """Thin HTTP client for the JobDataLake API (https://api.jobdatalake.com)."""
 
+import json
 import os
 
 import requests
@@ -37,5 +38,10 @@ def get_jobs(params: dict) -> dict:
     jobs = data.get("jobs") or data.get("data") or data.get("results") or []
     if not isinstance(jobs, list):
         jobs = []
+
+    raw_preview = json.dumps(jobs, default=str)
+    if len(raw_preview) > 500:
+        raw_preview = f"{raw_preview[:500]}..."
+    print(f"[JobDataLake] params={params} -> {len(jobs)} job(s): {raw_preview}", flush=True)
 
     return {"jobs": jobs, "error": None}

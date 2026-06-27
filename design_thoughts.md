@@ -4,7 +4,7 @@ What's so bad about it being an agent?When you turn a component into an Agent, y
 3. **Redundant State Management** An agent requires an execution framework (like a LangGraph graph state, an agent memory buffer, or system prompts) just to manage its loop. For a step that is fundamentally linear (Take Jobs -> Score Jobs -> Show Jobs), adding an agent loop adds massive structural bloat to your codebase for no functional gain.
 
 
-
+deprecated - 
 **don't understand if this is valid architecture. that the llm only decides which tools to run and not actual structuring**
 It's a legitimate pattern in general — but only when there's **real ambiguity** for the LLM to resolve. The relevant test: does the "decision" the LLM makes actually vary based on interpreting messy input, or is the control flow fixed regardless of what's in the text?
 
@@ -191,3 +191,50 @@ Matching itself is still pure deterministic Python, matching the earlier
 design's reasoning for why the Matcher Agent was dropped (no real
 decision is made in scoring, so no LLM is needed there).
 
+
+
+**what are the justifications for the agents? the llm extraction for profiler and what for search agent**
+
+Both agents are justified by the same test from design_thoughts.md: does the LLM's "decision" actually vary based on interpreting messy input, or is the control flow fixed regardless of what's in the text? — which is exactly what separates them from the deterministic ranking step (tools/matching_tools.py), which fails that test and stays plain Python.
+
+Profile Agent — not a tool-use agent (it just extracts, no tools), but still genuinely needs an LLM because:
+- Resumes and free-text requests are unstructured and inconsistently phrased — regex (normalize_user_profile) demonstrably failed at this (e.g. pulling generic words like "coding" as a skill, or missing skills phrased indirectly).
+- Extraction requires actual language understanding: resolving conflicts between resume and stated preference ("remote only" in the prompt vs. an on-site job in the resume), inferring skills from job-title phrasing ("Python Coding Specialist" → python), normalizing inconsistent seniority/remote wording.
+- The output varies non-deterministically with phrasing — two resumes with the same facts worded differently should still extract the same structured profile, which is a judgment call, not a fixed transformation.
+
+Search Agent — a real tool-use decision, not just routing:
+- What goes into query (tight keywords vs. a descriptive phrase vs. omitted entirely to rely on filters) and which filters to set genuinely depends on interpreting the profile/request — a thin/conceptual profile needs a descriptive query, a profile rich in structured signal needs filters instead, and a human recruiter would make that same call differently per case.
+- It also has to manage retries adaptively (drop skills first on empty results, retry the same call once on a transient error) — that's runtime judgment based on what the tool actually returned, not a fixed sequence.
+- Contrast with ranking: ranking is "take jobs → score → sort," same steps every time regardless of input — that's why it's plain Python and not an agent.
+
+why is google news a tool and matching isn't?
+
+The judgment is in what the agent does with what comes back. google returns raw, unstructured web snippets — news, reviews, the company's own site, maybe nothing useful at all. The agent has to read that and decide: is anything here worth surfacing? Is it a layoffs story, a funding round, a glassdoor complaint, irrelevant noise? That's interpretation of free text that a fixed function can't do — there's no formula for "is this snippet relevant," the same way there's a formula for "does this skill list overlap."
+
+Compare to scoring: there, no LLM ever touches the input or the output. score_job_against_profile takes structured fields, runs fixed arithmetic, returns a number — the agent isn't reading or interpreting anything, it's just the messenger calling a function and passing the result through.
+
+So: simple tool call, sure — but the value (and the reason it needs to be an LLM step at all) is in reading the unstructured response afterward, not in constructing the request.
+
+
+the flow:
+Let me walk through it plainly, matching your description:
+
+1. The system prompt (role, goal, tool descriptions) and the user prompt (the search request + profile) get sent to the model once, as the starting point.
+2. The model looks at that and decides: "I should call search_jobs." That's one round-trip — model talks, our code runs the actual tool, the job rows come back.
+3. Those job rows get added onto the conversation as a new turn. Now the model sees: original request + "I called search_jobs" + the job rows.
+4. The model looks at the rows, picks out distinct companies, and decides: "I should call search_company for each one." That's more round-trips — possibly one per company, or several companies bundled into one round-trip.
+5. Each search_company result (the news headlines) also gets added onto the conversation.
+6. Eventually the model has everything it needs — original request, job rows, news per company — and instead of calling another tool, it writes the final JSON: jobs + their company_news. That ends the loop.
+
+MAX_ITERATIONS is just a hard cap on how many of those round-trips (steps 2-6) are allowed to happen before we give up. Each "iteration" = one trip to the model where it either calls a tool again or finally answers. It exists purely as a safety valve: if the model got stuck calling tools forever (a bug, a confusing tool result, whatever) and never produced a final answer, without this cap we'd be stuck in an infinite loop, burning API calls and money forever. With MAX_ITERATIONS=10, after 10 of these round-trips with no final answer, the code just stops and returns an error instead of hanging forever (_max_iterations_error() in agents/agent_loop.py:267).
+
+It has nothing to do with how well the model does its job (counting companies, judging news relevance, etc.) — that's all prompt instructions. It's purely "don't let this run forever."
+
+
+**About the matching signal ( profile -> title matching by llm)**
+**should this capability be another tool of the search agent?**
+⧉ Selected 1 lines from tools\matching_tools.py in Visual Studio Code
+
+No — a tool is for delegating to something the LLM can't do itself (call an external API, run deterministic code). Here the agent already has both pieces of information sitting in its own context — the job title (from search_jobs) and the profile's role (from the user message) — so there's nothing to fetch or compute externally. It's the same kind of in-context judgment the agent already makes when mapping remote_preference to remote_type or deduping jobs: direct reasoning over what's already in front of it, written straight into the output field.
+
+Making it a tool call would just add a pointless round-trip — the model "calling itself" with no new capability gained, costing an extra iteration for zero benefit. Keep it as a Process-step instruction (which is what we just did), not a tool.

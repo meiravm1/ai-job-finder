@@ -1,9 +1,16 @@
 """Tool functions exposed to the Search Agent."""
 
+from tools.google_news_client import search_news
 from tools.jobdatalake_client import get_jobs
 
 
 def _coerce_location(value) -> str:
+    """Flatten JobDataLake's location field (dict, list, or string) into one string.
+
+    Falls back to "Unknown location" rather than None/empty - search_company
+    folds this straight into its query, so an empty value would search news
+    for the company name alone instead of failing loudly.
+    """
     if isinstance(value, dict):
         parts = [value.get(k) for k in ("city", "state", "country", "region") if value.get(k)]
         return ", ".join(parts) if parts else "Unknown location"
@@ -32,7 +39,7 @@ def _normalize_job(raw: dict) -> dict:
         "remote_type": raw.get("remote_type"),
         "seniority": seniority,
         "salary": raw.get("salary"),
-        "skills": raw.get("skills") or [],
+        "skills": raw.get("required_skills") or [],
         "employment_type": raw.get("employment_type"),
         "url": raw.get("url") or raw.get("job_url"),
     }
@@ -70,3 +77,40 @@ def search_jobs(
 
     result = get_jobs(params)
     return {"jobs": [_normalize_job(j) for j in result["jobs"]], "error": result["error"]}
+
+
+def search_company(company_name: str, location: str | None = None, company_domain: str | None = None) -> dict:
+    """Look up a company via Google News for a notable, interesting fact about it.
+
+    company_name is quoted in the query to force exact-phrase matching -
+    without quotes, Google News ANDs loose words together and a company
+    name that's also a common word (e.g. "Hover") pulls in unrelated noise.
+    company_domain, if given (the agent's own site, not a generic job
+    board), is the strongest disambiguator - a literal domain string rarely
+    appears in unrelated content, so it's tried first and alone if needed.
+    location is a weaker disambiguator and tried after domain.
+
+    Returns {"results": [{"title", "source", "published", "url"}, ...], "error": str | None}.
+    The agent reads the raw headlines to judge whether anything notable is
+    actually present - this tool does no interpretation of its own.
+
+    Google News treats the query as an implicit AND of every word, so an
+    over-qualified query can return nothing even when real results exist
+    for a looser version of the same query. Candidate queries are tried in
+    order from most to least specific, returning the first that finds
+    anything (or the last, plain one, if all come up empty).
+    """
+    candidates = []
+    if company_domain:
+        candidates.append(f'"{company_name}" "{company_domain}" latest interesting fact')
+        candidates.append(f'"{company_domain}" latest interesting fact')
+    if location:
+        candidates.append(f'"{company_name}" {location} latest interesting fact')
+    candidates.append(f'"{company_name}" latest interesting fact')
+
+    for query in candidates[:-1]:
+        result = search_news(query, max_results=5)
+        if result["results"] or result["error"]:
+            return result
+
+    return search_news(candidates[-1], max_results=5)

@@ -41,32 +41,56 @@ if st.button("Search", type="primary"):
             resume_text = extract_resume_text(resume_file)
 
         with st.spinner("Searching and ranking jobs..."):
-            result = run_pipeline(user_prompt, resume_text=resume_text, provider=provider)
+            st.session_state.search_result = run_pipeline(user_prompt, resume_text=resume_text, provider=provider)
+        # New results invalidate any previously selected row index in the table below.
+        st.session_state.pop("ranked_jobs_table", None)
 
-        ranked_jobs = result.get("ranked_jobs", [])
-        errors = result.get("errors", [])
+result = st.session_state.get("search_result")
+if result is not None:
+    ranked_jobs = result.get("ranked_jobs", [])
+    errors = result.get("errors", [])
 
-        if errors:
-            st.warning("Something went wrong while searching. See Debug info below for details.")
+    if errors:
+        st.warning("Something went wrong while searching. See Debug info below for details.")
 
-        if ranked_jobs:
-            st.subheader("Ranked results")
-            st.dataframe(
-                [
-                    {
-                        "Title": job.get("title"),
-                        "Company": job.get("company"),
-                        "Location": job.get("location"),
-                        "Score": job.get("matching_score"),
-                        "Why": job.get("match_reason"),
-                        "Link": job.get("url"),
-                    }
-                    for job in ranked_jobs
-                ],
-                use_container_width=True,
-            )
-        elif not errors:
-            st.info("No matching jobs found. Try a broader search.")
+    if ranked_jobs:
+        st.subheader("Ranked results")
+        st.caption("Click a row to see company news below.")
+        selection = st.dataframe(
+            [
+                {
+                    "Title": job.get("title"),
+                    "Company": job.get("company"),
+                    "Location": job.get("location"),
+                    "Skills": ", ".join(job.get("skills") or []),
+                    "Score%": job.get("matching_score"),
+                    "Link": job.get("url"),
+                }
+                for job in ranked_jobs
+                if (job.get("matching_score") or 0) >= 20
+            ],
+            width="stretch",
+            on_select="rerun",
+            selection_mode="single-row",
+            key="ranked_jobs_table",
+            column_config={"Link": st.column_config.LinkColumn("Link", display_text="Apply ↗")},
+        )
 
-        with st.expander("Debug info"):
-            st.json(result)
+        selected_rows = selection.selection.rows if selection else []
+        if selected_rows and selected_rows[0] < len(ranked_jobs):
+            selected_job = ranked_jobs[selected_rows[0]]
+            news = selected_job.get("company_news") or []
+            st.markdown(f"#### 📰 Company Spotlight: {selected_job.get('company')}")
+            if news:
+                for item in news:
+                    meta = " · ".join(p for p in (item.get("published"), item.get("source")) if p)
+                    st.markdown(f"- {item.get('headline')}")
+                    if meta:
+                        st.caption(meta)
+            else:
+                st.caption("No notable company news found.")
+    elif not errors:
+        st.info("No matching jobs found. Try a broader search.")
+
+    with st.expander("Debug info"):
+        st.json(result)
