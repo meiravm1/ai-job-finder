@@ -158,4 +158,7 @@ def rank_jobs_against_profile(profile: dict, jobs: list[dict], max_jobs: int = D
     ranked_jobs = [{**job, **score_job_against_profile(job, profile)} for job in jobs[:max_jobs]]
     ranked_jobs.sort(key=lambda j: j["matching_score"], reverse=True)
 
+    for job in ranked_jobs:
+        print(f"[Matching] {job['matching_score']:>3}% — {job.get('title')} @ {job.get('company')} | {job['match_reason']}", flush=True)
+
     return {"profile_used": profile, "ranked_jobs": ranked_jobs, "errors": []}
