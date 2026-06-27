@@ -114,13 +114,16 @@ if result is not None:
                 if news:
                     for item in news:
                         meta = " · ".join(p for p in (item.get("published"), item.get("source")) if p)
-                        st.markdown(f"- {item.get('headline')}")
+                        headline = item.get("headline", "")
+                        url = item.get("url")
+                        st.markdown(f"- [{headline}]({url})" if url else f"- {headline}")
                         if meta:
                             st.caption(meta)
                 else:
                     st.caption("No notable company news found.")
         else:
             st.info("No matching jobs found. Try a broader search.")
+
     elif not errors:
         st.info("No matching jobs found. Try a broader search.")
 

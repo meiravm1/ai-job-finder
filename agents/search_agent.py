@@ -97,9 +97,9 @@ system prompt.
    returned headlines and judge their quality yourself: keep up to 3 that
    are genuinely interesting and clearly about that company (a fun fact, a
    notable achievement, a recent milestone), and put them in "company_news"
-   as {"headline", "source", "published"} objects using the tool's "title",
-   "source", and "published" fields verbatim - do not rewrite or summarize
-   the headline text. If nothing notable comes up, the headlines are
+   as {"headline", "source", "published", "url"} objects using the tool's
+   "title", "source", "published", and "url" fields verbatim - do not
+   rewrite or summarize the headline text. If nothing notable comes up, the headlines are
    irrelevant/about a different company, or the call fails, set
    "company_news" to an empty list - do not force in weak or unrelated
    results. You may call search_company for multiple different companies in
@@ -158,7 +158,8 @@ Return ONLY valid JSON matching this schema, with no extra text:
         {
           "headline": "string",
           "source": "string or null",
-          "published": "string or null"
+          "published": "string or null",
+          "url": "string or null"
         }
       ]
     }
