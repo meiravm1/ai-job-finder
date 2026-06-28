@@ -16,3 +16,42 @@ free text + cv => add location that doesn't match cv
 
 
 why should be added to log
+
+
+
+Bar 221
+11:59 AM
+https://docs.google.com/presentation/d/1ZsA0651-y6QDAqLZJf8H4w9W0U5XxC4-koxLDJQVneg/edit?usp=sharing
+12:37 PM
+reflection and next steps ( chatgpt)
+
+
+Add caching for company news.
+Fetching Google News per job can get expensive and noisy. Cache by company for a short window and store a “news freshness” timestamp. That will reduce repeated lookups and keep the UI snappy.  
+
+
+Measure the system.
+Useful metrics would be:
+
+click-through rate on jobs
+save/apply rate
+average rank of clicked jobs
+precision at top 10
+profile extraction completeness
+latency per stage
+12:50 PM
+All truncation in this codebase is logging-only — _truncate(300 chars) and user_message[:200] only affect what's printed to the console. The actual data sent to the LLM is always the full content.
+
+Job results — limited by count (per_page, default 5–10), not KB. The full job payload goes into the LLM's context window as tool result messages.
+
+News results — capped at max_results=5 articles per company (google_news_client.py:19). Each item is small (title + source + date + url), so no KB concern.
+
+Resume / free text — no size limit in the code. The practical ceiling is the LLM provider's context window:
+- Gemini 2.5 Flash: ~1M tokens (~750K words) — resume size is irrelevant
+- Groq Llama-3.3-70b: 128K tokens (~96KB of plain text) — also more than enough for any resume
+
+The one real limit: MAX_TOKENS = 8192 is the output token budget (agent_loop.py:12). This is what the agent uses for its final JSON response and its tool calls. If the agent has fetched many jobs with long descriptions and extensive news, the 8192-token output cap could truncate the final JSON — which is why Gemini's thinking tokens are disabled (they'd eat into this budget without adding value for a structured JSON task).
+
+Bar 221
+1:51 PM
+The problem it's solving: When the Search Agent looks up news about a company (say, a job posting for "Hover"), a naive search for the word "Hover" could match all sorts of unrelated things — other companies, products, or generic uses of the word "hover." This is what "false matches" means.

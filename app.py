@@ -81,7 +81,7 @@ if result is not None:
         st.warning("Something went wrong while searching. See Debug info below for details.")
 
     if ranked_jobs:
-        visible_jobs = [job for job in ranked_jobs if (job.get("matching_score") or 0) >= 20]
+        visible_jobs = [job for job in ranked_jobs if (job.get("matching_score") or 0) >= 26]
 
         if visible_jobs:
             st.subheader("Ranked results")
